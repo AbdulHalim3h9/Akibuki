@@ -149,22 +149,22 @@ export const DrawingProvider = ({ children }) => {
             ctx.beginPath();
             ctx.rect(start.x, start.y, width, height);
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'circle') {
             const [center, radiusPoint] = action.points;
             const radius = Math.sqrt(Math.pow(radiusPoint.x - center.x, 2) + Math.pow(radiusPoint.y - center.y, 2));
             ctx.beginPath();
             ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'ellipse') {
             const [start, end] = action.points;
             const centerX = (start.x + end.x) / 2;
@@ -174,11 +174,11 @@ export const DrawingProvider = ({ children }) => {
             ctx.beginPath();
             ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'triangle') {
             const [start, end] = action.points;
             const third = { x: (start.x + end.x) / 2, y: start.y - Math.abs(end.x - start.x) * Math.sqrt(3) / 2 };
@@ -188,11 +188,11 @@ export const DrawingProvider = ({ children }) => {
             ctx.lineTo(third.x, start.y);
             ctx.closePath();
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'pentagon') {
             const [start, end] = action.points;
             const centerX = (start.x + end.x) / 2;
@@ -208,11 +208,11 @@ export const DrawingProvider = ({ children }) => {
             }
             ctx.closePath();
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'hexagon') {
             const [start, end] = action.points;
             const centerX = (start.x + end.x) / 2;
@@ -228,11 +228,11 @@ export const DrawingProvider = ({ children }) => {
             }
             ctx.closePath();
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'star') {
             const [start, end] = action.points;
             const centerX = (start.x + end.x) / 2;
@@ -250,11 +250,11 @@ export const DrawingProvider = ({ children }) => {
             }
             ctx.closePath();
             if (action.fill) {
-  ctx.fill();
-  ctx.stroke();
-} else {
-  ctx.stroke();
-}
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.stroke();
+            }
           } else if (action.tool === 'line') {
             const [start, end] = action.points;
             ctx.beginPath();
@@ -265,11 +265,11 @@ export const DrawingProvider = ({ children }) => {
         } else { // Freehand drawing
           ctx.beginPath();
           if (action.points.length > 0) {
-              ctx.moveTo(action.points[0].x, action.points[0].y);
-              for (let i = 1; i < action.points.length; i++) {
-                  ctx.lineTo(action.points[i].x, action.points[i].y);
-              }
-              ctx.stroke();
+            ctx.moveTo(action.points[0].x, action.points[0].y);
+            for (let i = 1; i < action.points.length; i++) {
+              ctx.lineTo(action.points[i].x, action.points[i].y);
+            }
+            ctx.stroke();
           }
         }
       } else if (action.type === 'text') {
@@ -354,6 +354,8 @@ export const DrawingProvider = ({ children }) => {
     reader.readAsText(file);
   }, []);
 
+  const canvasRef = useRef(null);
+
   const contextValue = useMemo(() => ({
     activeTool, setActiveTool,
     brushSize, setBrushSize,
@@ -378,7 +380,8 @@ export const DrawingProvider = ({ children }) => {
     loadDrawing,
     canUndo: historyIndex > -1,
     canRedo: historyIndex < history.length - 1,
-  }), [activeTool, brushSize, strokeColor, fillColor, shapes, history, historyIndex, startShapeDrawing, updateShapeDrawing, completeShapeDrawing, addHistoryAction, startStroke, updateStroke, endCurrentStroke, redrawCanvas, addText, drawAction, clearCanvas, undo, redo, saveDrawing, loadDrawing]);
+    canvasRef
+  }), [activeTool, brushSize, strokeColor, fillColor, shapes, history, historyIndex, startShapeDrawing, updateShapeDrawing, completeShapeDrawing, addHistoryAction, startStroke, updateStroke, endCurrentStroke, redrawCanvas, addText, drawAction, clearCanvas, undo, redo, saveDrawing, loadDrawing, canvasRef]);
 
   return (
     <DrawingContext.Provider value={contextValue}>
@@ -386,4 +389,3 @@ export const DrawingProvider = ({ children }) => {
     </DrawingContext.Provider>
   );
 };
-

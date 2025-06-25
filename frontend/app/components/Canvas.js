@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { forwardRef, useEffect, useRef, useState, useMemo, useImperativeHandle } from 'react';
 import { useDrawing } from '../context/DrawingContext';
 
 // Controlled component for text input
@@ -40,11 +40,12 @@ function TextInput({ textInput, onTextChange, onSubmit }) {
   );
 }
 
-export default function Canvas({ className = '' }) {
+const Canvas = forwardRef(({ className = '' }, ref) => {
   const {
     activeTool,
     brushSize,
     color,
+    strokeColor,
     shapes,
     history,
     historyIndex,
@@ -64,6 +65,11 @@ export default function Canvas({ className = '' }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [context, setContext] = useState(null);
   const [textInput, setTextInput] = useState(null);
+
+  // Expose the canvas ref to parent
+  useImperativeHandle(ref, () => ({
+    getCanvas: () => canvasRef.current
+  }));
 
   const submitTextRef = useRef();
   useEffect(() => {
@@ -194,7 +200,8 @@ export default function Canvas({ className = '' }) {
         startShapeDrawing(activeTool, pos);
       } else {
         const size = ['brush', 'eraser'].includes(activeTool) ? brushSize * 2 : brushSize;
-        startStroke(pos, activeTool, color, size);
+        // Use strokeColor from context for all drawing tools
+        startStroke(pos, activeTool, strokeColor, size);
       }
     }
   };
@@ -231,6 +238,7 @@ export default function Canvas({ className = '' }) {
   return (
     <div className={`relative w-full h-full pb-16 ${className}`}>
       <canvas
+        id="drawing-canvas"
         ref={canvasRef}
         onMouseDown={startDrawing}
         onMouseMove={draw}
@@ -254,11 +262,17 @@ export default function Canvas({ className = '' }) {
           preventDefault(e);
           finishDrawing();
         }}
-        style={{ 
+        style={{
           cursor: canvasCursor,
-          touchAction: 'none' // Prevent default touch behaviors like scrolling
+          touchAction: 'none', // Prevent default touch behaviors like scrolling
+          backgroundColor: 'white',
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          borderRadius: '0.5rem',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
         }}
-        className="absolute top-0 left-0 w-full h-full bg-white rounded-lg shadow-md touch-none"
+        className="absolute top-0 left-0 touch-none"
       />
       {textInput && (
         <TextInput
@@ -276,5 +290,6 @@ export default function Canvas({ className = '' }) {
       </button>
     </div>
   );
-}
+});
 
+export default Canvas;

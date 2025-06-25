@@ -15,6 +15,7 @@ import {
   FaPalette,
   FaFile,
   FaSave,
+  FaDownload,
   FaFolderOpen,
   FaSquare,
   FaCircle,
@@ -83,6 +84,42 @@ function FileMenu({ isMobile = false }) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const downloadCanvas = () => {
+    try {
+      // Get the canvas by ID
+      const canvas = document.getElementById('drawing-canvas');
+      if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+      }
+      
+      // Create a temporary canvas to ensure we get the current drawing
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      
+      // Fill with white background
+      tempCtx.fillStyle = 'white';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Draw the original canvas onto the temp canvas
+      tempCtx.drawImage(canvas, 0, 0);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `drawing-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = tempCanvas.toDataURL('image/png');
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading canvas:', error);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -157,48 +194,7 @@ function FileMenu({ isMobile = false }) {
 
   return (
     <div className="relative">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center px-3 py-2 text-white hover:bg-gray-700 rounded-md transition-colors"
-      >
-        <span className="text-sm">File</span>
-        <FaChevronDown className="ml-1 text-xs" />
-      </button>
-      
-      {isOpen && (
-        <div 
-          className="absolute left-0 mt-1 w-48 bg-gray-800 rounded-md shadow-lg z-50 border border-gray-600 py-1"
-          onMouseLeave={() => setIsOpen(false)}
-        >
-          <button
-            onClick={() => {
-              newDocument();
-              setIsOpen(false);
-            }}
-            className="flex items-center w-full px-4 py-2 text-left text-white hover:bg-gray-700 transition-colors text-sm"
-          >
-            <FaFile className="mr-3" /> New
-          </button>
-          <button
-            onClick={() => {
-              handleSave();
-              setIsOpen(false);
-            }}
-            className="flex items-center w-full px-4 py-2 text-left text-white hover:bg-gray-700 transition-colors text-sm"
-          >
-            <FaSave className="mr-3" /> Save
-          </button>
-          <button
-            onClick={() => {
-              handleOpenClick();
-              setIsOpen(false);
-            }}
-            className="flex items-center w-full px-4 py-2 text-left text-white hover:bg-gray-700 transition-colors text-sm"
-          >
-            <FaFolderOpen className="mr-3" /> Open
-          </button>
-        </div>
-      )}
+
     </div>
   );
 }
@@ -253,6 +249,7 @@ export default function Navigation() {
     clearCanvas,
     canUndo,
     canRedo,
+    canvasRef // Make sure to pass this from the parent component
   } = useDrawing();
   
   const [showStrokeColorPicker, setShowStrokeColorPicker] = useState(false);
@@ -372,6 +369,60 @@ export default function Navigation() {
     }
   }, []);
 
+  // Download canvas as image
+  const downloadCanvas = () => {
+    console.log('Download button clicked');
+    
+    // Get the canvas element
+    const canvas = document.getElementById('drawing-canvas');
+    console.log('Canvas element:', canvas);
+    
+    if (!canvas) {
+      console.error('Canvas element not found');
+      alert('Error: Could not find the drawing canvas');
+      return;
+    }
+    
+    try {
+      console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+      
+      // Create a temporary canvas
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      // Fill with white background
+      tempCtx.fillStyle = 'white';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Draw the original canvas onto the temp canvas
+      tempCtx.drawImage(canvas, 0, 0);
+      
+      // Convert to data URL
+      const dataUrl = tempCanvas.toDataURL('image/png');
+      console.log('Generated data URL:', dataUrl.substring(0, 50) + '...');
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `drawing-${timestamp}.png`;
+      
+      link.download = filename;
+      link.href = dataUrl;
+      
+      // Required for Firefox
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log('Download should start now');
+    } catch (error) {
+      console.error('Error in downloadCanvas:', error);
+      alert('Error saving image: ' + error.message);
+    }
+  };
+
   return (
     <nav className="bg-gray-800 text-white shadow-lg" ref={navRef} style={{
       '--nav-height': '4rem' // fallback value
@@ -390,6 +441,15 @@ export default function Navigation() {
             
             {/* History Controls */}
             <div className="flex items-center space-x-1">
+                              <button
+            onClick={() => {
+              downloadCanvas();
+              setIsOpen(false);
+            }}
+            className="flex items-center w-full px-4 py-2 text-left text-white hover:bg-gray-700 transition-colors text-sm"
+          >
+            <FaDownload className="mr-3" /> Download
+          </button>
               <button
                 className={`p-2 rounded transition-colors ${canUndo ? 'text-white hover:bg-gray-700' : 'text-gray-500 cursor-not-allowed'}`}
                 title="Undo"
@@ -405,13 +465,6 @@ export default function Navigation() {
                 disabled={!canRedo}
               >
                 <FaRedo className="text-lg" />
-              </button>
-              <button
-                className="p-2 rounded text-red-400 hover:bg-gray-700 transition-colors"
-                title="Clear Canvas"
-                onClick={clearCanvas}
-              >
-                <FaTrash className="text-lg" />
               </button>
             </div>
 
@@ -562,7 +615,6 @@ export default function Navigation() {
                 </div>
               )}
             </div>
-
 
           </div>
         </div>
