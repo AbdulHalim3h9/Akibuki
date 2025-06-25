@@ -285,34 +285,89 @@ export const DrawingProvider = ({ children }) => {
     }
   }, []);
 
-  const redrawCanvas = useCallback((ctx, width, height, history, historyIndex) => {
+  const redrawCanvas = useCallback((canvasOrCtx, width, height, historyToDraw, historyIndexToUse) => {
+    const ctx = canvasOrCtx.getContext ? canvasOrCtx.getContext('2d') : canvasOrCtx;
     if (!ctx) return;
-    ctx.clearRect(0, 0, width, height);
-    const historyToDraw = history.slice(0, historyIndex + 1);
-    for (const action of historyToDraw) {
-      if (action.type === 'clear') {
-        ctx.clearRect(0, 0, width, height);
-      } else {
-        drawAction(ctx, action);
+    
+    const w = width || (canvasOrCtx.width || canvasOrCtx.canvas?.width || 0);
+    const h = height || (canvasOrCtx.height || canvasOrCtx.canvas?.height || 0);
+    
+    // Clear the canvas
+    ctx.clearRect(0, 0, w, h);
+    
+    try {
+      // Get the actions to draw (either provided or from history)
+      const index = historyIndexToUse !== undefined ? historyIndexToUse : historyIndex;
+      const actionsToDraw = historyToDraw || history.slice(0, index + 1);
+      
+      // Draw all actions up to the current history index
+      for (let i = 0; i <= index && i < history.length; i++) {
+        const action = history[i];
+        if (action) {
+          if (action.type === 'clear') {
+            ctx.clearRect(0, 0, w, h);
+          } else {
+            drawAction(ctx, action);
+          }
+        }
       }
+      
+      // Draw the current shape being drawn (for shape tools)
+      if (shapes.currentShape) {
+        drawAction(ctx, shapes.currentShape);
+      }
+    } catch (error) {
+      console.error('Error in redrawCanvas:', error);
     }
-  }, [drawAction]);
+  }, [history, historyIndex, shapes.currentShape, drawAction]);
 
   const undo = useCallback(() => {
     if (historyIndex > -1) {
-      setHistoryIndex(prev => prev - 1);
+      setHistoryIndex(prev => {
+        const newIndex = prev - 1;
+        // Force a re-render of the canvas
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            redrawCanvas(ctx, canvas.width, canvas.height, history, newIndex);
+          }
+        }
+        return newIndex;
+      });
     }
-  }, [historyIndex]);
+  }, [history, historyIndex]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(prev => prev + 1);
+      setHistoryIndex(prev => {
+        const newIndex = prev + 1;
+        // Force a re-render of the canvas
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            redrawCanvas(ctx, canvas.width, canvas.height, history, newIndex);
+          }
+        }
+        return newIndex;
+      });
     }
-  }, [historyIndex, history.length]);
+  }, [history, historyIndex]);
 
   const clearCanvas = useCallback(() => {
-    addHistoryAction({ type: 'clear', id: Date.now() });
-  }, [addHistoryAction]);
+    setHistory(prev => [...prev, { type: 'clear', id: Date.now() }]);
+    setHistoryIndex(prev => prev + 1);
+    
+    // Clear the canvas immediately
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  }, []);
 
   const addText = useCallback((text, position) => {
     const { strokeColor, brushSize } = stateRef.current;
@@ -366,18 +421,15 @@ export const DrawingProvider = ({ children }) => {
     startShapeDrawing,
     updateShapeDrawing,
     completeShapeDrawing,
-    addHistoryAction,
     startStroke,
     updateStroke,
     endCurrentStroke,
     redrawCanvas,
-    addText,
     drawAction,
     clearCanvas,
     undo,
     redo,
-    saveDrawing,
-    loadDrawing,
+    addText,
     canUndo: historyIndex > -1,
     canRedo: historyIndex < history.length - 1,
     canvasRef

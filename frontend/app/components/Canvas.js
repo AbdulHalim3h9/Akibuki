@@ -62,6 +62,7 @@ const Canvas = forwardRef(function Canvas({ className = '' }, ref) {
   } = useDrawing();
 
   const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [context, setContext] = useState(null);
   const [textInput, setTextInput] = useState(null);
@@ -172,22 +173,40 @@ const Canvas = forwardRef(function Canvas({ className = '' }, ref) {
 
 
   const getMousePos = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const scaleX = canvasRef.current.width / rect.width;
-    const scaleY = canvasRef.current.height / rect.height;
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     
     // Handle both mouse and touch events
-    const clientX = e.clientX || (e.touches && e.touches[0]?.clientX);
-    const clientY = e.clientY || (e.touches && e.touches[0]?.clientY);
+    let clientX, clientY;
+    
+    if (e.touches) {
+      // For touch events
+      if (e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+        // For touch end events
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      }
+    } else {
+      // For mouse events
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
     
     if (clientX === undefined || clientY === undefined) {
       return null;
     }
     
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
-    };
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    
+    return { x, y };
   };
 
   const handleTextChange = (e) => {
@@ -202,48 +221,126 @@ const Canvas = forwardRef(function Canvas({ className = '' }, ref) {
   };
 
   const startDrawing = (e) => {
-    if (!context || e.target.tagName !== 'CANVAS') return;
+    try {
+      // Prevent default to avoid any unwanted behaviors
+      e.preventDefault();
+      
+      // Get the position
+      const pos = getMousePos(e);
+      if (!pos) return;
 
-    const pos = getMousePos(e);
-
-    if (activeTool === 'text') {
-      // If there's an existing text input, submit it before creating a new one.
-      if (textInput && textInput.text) {
-        submitText();
+      // Handle text tool separately
+      if (activeTool === 'text') {
+        // If there's an existing text input, submit it before creating a new one
+        if (textInput && textInput.text) {
+          submitText();
+        }
+        setTextInput({ position: pos, text: '' });
+        return;
       }
-      setTextInput({ position: pos, text: '' });
-    } else {
+
+      // For drawing tools, set the drawing state immediately
+      isDrawingRef.current = true;
       setIsDrawing(true);
 
-      if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(activeTool)) {
-        startShapeDrawing(activeTool, pos);
-      } else {
-        const size = ['brush', 'eraser'].includes(activeTool) ? brushSize * 2 : brushSize;
-        // Use strokeColor from context for all drawing tools
-        startStroke(pos, activeTool, strokeColor, size);
-      }
+      // Use requestAnimationFrame to ensure state updates before drawing
+      requestAnimationFrame(() => {
+        try {
+          // Start the appropriate drawing action based on the tool
+          if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(activeTool)) {
+            startShapeDrawing(activeTool, pos);
+          } else {
+            let size = brushSize;
+            if (activeTool === 'brush') {
+              size = brushSize * 4;  // 2x size for brush
+            } else if (activeTool === 'eraser') {
+              size = brushSize * 6;  // 3x size for eraser
+            }
+            startStroke(pos, activeTool, strokeColor, size);
+          }
+          
+          // Force focus to handle mouse events properly
+          canvasRef.current?.focus();
+          
+          // Initial redraw
+          const canvas = canvasRef.current;
+          if (canvas) {
+            redrawCanvas(canvas, canvas.width, canvas.height);
+          }
+        } catch (error) {
+          console.error('Error in startDrawing animation frame:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Error in startDrawing:', error);
     }
   };
 
   const draw = (e) => {
-    if (!isDrawing || !context) return;
+    if (!isDrawingRef.current) return;
+    
     const pos = getMousePos(e);
+    if (!pos) return;
 
-    if (['pencil', 'brush', 'eraser'].includes(activeTool)) {
-      updateStroke(pos);
-    } else if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(activeTool)) {
-      updateShapeDrawing(pos);
+    // Prevent default to avoid any unwanted behaviors
+    e.preventDefault();
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    try {
+      // For freehand drawing tools (pencil, brush, eraser)
+      if (['pencil', 'brush', 'eraser'].includes(activeTool)) {
+        updateStroke(pos);
+      } 
+      // For shape tools
+      else if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(activeTool)) {
+        updateShapeDrawing(pos);
+      }
+      
+      // Redraw the canvas to show updates
+      requestAnimationFrame(() => {
+        redrawCanvas(canvas, canvas.width, canvas.height);
+      });
+    } catch (error) {
+      console.error('Error in draw:', error);
     }
   };
 
-  const finishDrawing = () => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
-
-    if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(activeTool)) {
-      completeShapeDrawing();
-    } else {
-      endCurrentStroke();
+  const finishDrawing = (e) => {
+    try {
+      // Prevent default to avoid any unwanted behaviors
+      if (e) e.preventDefault();
+      
+      if (!isDrawingRef.current) return;
+      
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      // Use requestAnimationFrame to ensure state updates before completing the drawing
+      requestAnimationFrame(() => {
+        try {
+          // Complete the current drawing action
+          if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(activeTool)) {
+            completeShapeDrawing();
+          } else if (['pencil', 'brush', 'eraser'].includes(activeTool)) {
+            endCurrentStroke();
+          }
+          
+          // Final redraw to ensure everything is up to date
+          redrawCanvas(canvas, canvas.width, canvas.height);
+        } catch (error) {
+          console.error('Error in finishDrawing animation frame:', error);
+        } finally {
+          // Always reset drawing state, even if there was an error
+          setIsDrawing(false);
+          isDrawingRef.current = false;
+        }
+      });
+    } catch (error) {
+      console.error('Error in finishDrawing:', error);
+      setIsDrawing(false);
+      isDrawingRef.current = false;
     }
   };
 
@@ -259,28 +356,15 @@ const Canvas = forwardRef(function Canvas({ className = '' }, ref) {
       <canvas
         id="drawing-canvas"
         ref={canvasRef}
+        tabIndex="0"  // Make canvas focusable
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={finishDrawing}
         onMouseLeave={finishDrawing}
-        onTouchStart={(e) => {
-          preventDefault(e);
-          startDrawing(e.touches[0]);
-        }}
-        onTouchMove={(e) => {
-          preventDefault(e);
-          if (e.touches.length === 1) { // Only handle single touch
-            draw(e.touches[0]);
-          }
-        }}
-        onTouchEnd={(e) => {
-          preventDefault(e);
-          finishDrawing();
-        }}
-        onTouchCancel={(e) => {
-          preventDefault(e);
-          finishDrawing();
-        }}
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={finishDrawing}
+        onTouchCancel={finishDrawing}
         style={{
           cursor: canvasCursor,
           touchAction: 'none', // Prevent default touch behaviors like scrolling

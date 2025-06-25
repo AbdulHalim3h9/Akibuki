@@ -442,12 +442,9 @@ export default function Navigation() {
             {/* History Controls */}
             <div className="flex items-center space-x-1">
                               <button
-            onClick={() => {
-              downloadCanvas();
-              setIsOpen(false);
-            }}
-            className="flex items-center w-full px-4 py-2 text-left text-white hover:bg-gray-700 transition-colors text-sm"
-          >
+              onClick={downloadCanvas}
+              className="flex items-center w-full px-4 py-2 text-left text-white hover:bg-gray-700 transition-colors text-sm"
+            >
             <FaDownload className="mr-3" /> Download
           </button>
               <button
