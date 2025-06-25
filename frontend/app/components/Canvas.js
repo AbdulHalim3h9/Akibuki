@@ -77,15 +77,34 @@ const Canvas = forwardRef(function Canvas({ className = '' }, ref) {
   });
 
   const prevActiveToolRef = useRef(activeTool);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
+    // Skip the initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Handle text tool deactivation
     if (prevActiveToolRef.current === 'text' && activeTool !== 'text') {
       if (submitTextRef.current) {
         submitTextRef.current();
       }
     }
+    
+    // Reset drawing state when switching tools
+    if (isDrawing) {
+      setIsDrawing(false);
+      if (['pencil', 'brush', 'eraser'].includes(prevActiveToolRef.current)) {
+        endCurrentStroke();
+      } else if (['rectangle', 'circle', 'ellipse', 'line', 'triangle', 'pentagon', 'hexagon', 'star'].includes(prevActiveToolRef.current)) {
+        completeShapeDrawing();
+      }
+    }
+    
     prevActiveToolRef.current = activeTool;
-  }, [activeTool]);
+  }, [activeTool, isDrawing, endCurrentStroke, completeShapeDrawing]);
 
 
   // Effect for initialization and resizing
