@@ -275,7 +275,7 @@ export const DrawingProvider = ({ children }) => {
       } else if (action.type === 'text') {
         // Setup for drawing text
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = action.strokeColor || '#000';
+        ctx.fillStyle = action.color || '#000'; // Use action.color instead of action.strokeColor
         ctx.font = `${action.size}px sans-serif`;
         
         ctx.fillText(action.text, action.position.x, action.position.y);
@@ -315,12 +315,12 @@ export const DrawingProvider = ({ children }) => {
   };
 
   const addText = useCallback((text, position) => {
-    const { color, brushSize } = stateRef.current;
+    const { strokeColor, brushSize } = stateRef.current;
     addHistoryAction({
       type: 'text',
       text,
       position,
-      color,
+      color: strokeColor, // Use strokeColor instead of color
       size: brushSize * 4,
       id: Date.now(),
     });
