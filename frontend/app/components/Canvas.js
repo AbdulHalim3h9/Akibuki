@@ -40,7 +40,7 @@ function TextInput({ textInput, onTextChange, onSubmit }) {
   );
 }
 
-const Canvas = forwardRef(({ className = '' }, ref) => {
+const Canvas = forwardRef(function Canvas({ className = '' }, ref) {
   const {
     activeTool,
     brushSize,
@@ -291,5 +291,7 @@ const Canvas = forwardRef(({ className = '' }, ref) => {
     </div>
   );
 });
+
+Canvas.displayName = 'Canvas';
 
 export default Canvas;

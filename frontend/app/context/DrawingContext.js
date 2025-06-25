@@ -298,21 +298,21 @@ export const DrawingProvider = ({ children }) => {
     }
   }, [drawAction]);
 
-  const undo = () => {
+  const undo = useCallback(() => {
     if (historyIndex > -1) {
-      setHistoryIndex(historyIndex - 1);
+      setHistoryIndex(prev => prev - 1);
     }
-  };
+  }, [historyIndex]);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
+      setHistoryIndex(prev => prev + 1);
     }
-  };
+  }, [historyIndex, history.length]);
 
-  const clearCanvas = () => {
+  const clearCanvas = useCallback(() => {
     addHistoryAction({ type: 'clear', id: Date.now() });
-  };
+  }, [addHistoryAction]);
 
   const addText = useCallback((text, position) => {
     const { strokeColor, brushSize } = stateRef.current;
